@@ -166,6 +166,8 @@ Each overlay changes only a small `cloud.yaml` that the Collector merges over th
 - `govulncheck` is clean.
 - The kubelet_stats and k8s_cluster metric names are asserted by the minikube e2e job, which needs a real kubelet. If a Collector upgrade renames one, that job fails and lists the actual names in its artifacts.
 
+Known limitation: Jaeger 2.21 and later removed the legacy `/api/services` and `/api/traces?service=` endpoints and kept `/api/v3/*` and trace-by-ID. Search traces in the Jaeger UI (`localhost:16686`). From Grafana, open traces by ID or through exemplars. If Grafana's Jaeger search returns 404, this is the reason.
+
 Not tested here: live EKS, GKE and AKS clusters. Those overlays are validated for schema and Collector config, but you need to fill in your account, workspace and identity values.
 
 ## Repository layout

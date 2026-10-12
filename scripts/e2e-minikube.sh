@@ -41,13 +41,14 @@ snapshot() {
   curl -fs "$API/api/v1/traffic" > "$OUT/traffic.json" || true
   curl -fs "$API/api/v1/containers" > "$OUT/containers.json" || true
   curl -fs "$API/api/v1/summary" > "$OUT/summary.json" || true
-  curl -fs "http://localhost:16686/api/services" > "$OUT/jaeger-services.json" || true
+  curl -fs "http://localhost:16686/api/v3/services" > "$OUT/jaeger-services.json" || true
   curl -fs "$PROM/api/v1/targets" | jq '[.data.activeTargets[] | {job: .labels.job, health, lastError}]' > "$OUT/prom-targets.json" || true
 }
 
 has_edge() { curl -fs "$API/api/v1/traffic" | jq -e --arg c "$1" --arg s "$2" '.edges[] | select(.client==$c and .server==$s and .rps > 0)' >/dev/null; }
 slo_has_data() { curl -fs "$API/api/v1/slos/$1" | jq -e '.has_data == true' >/dev/null; }
-jaeger_has() { curl -fs "http://localhost:16686/api/services" | jq -e --arg s "$1" '.data | index($s)' >/dev/null; }
+# Jaeger >= 2.21 serves the OTLP-based query API under /api/v3 (legacy /api/services was removed).
+jaeger_has() { curl -fs "http://localhost:16686/api/v3/services" | jq -e --arg s "$1" '.services | index($s)' >/dev/null; }
 prom_has() { curl -fs "$PROM/api/v1/query" --data-urlencode "query=$1" | jq -e '.data.result | length > 0' >/dev/null; }
 
 echo "--- traces"
