@@ -51,7 +51,7 @@ jobs:
         run: |
           docker run --rm -v "$PWD/deploy/base/prometheus:/p" --entrypoint promtool prom/prometheus:${PROMETHEUS_VERSION} check rules /p/slo-rules.yaml
           docker run --rm -v "$PWD/deploy/base/prometheus:/etc/prometheus" --entrypoint promtool prom/prometheus:${PROMETHEUS_VERSION} check config --syntax-only /etc/prometheus/prometheus.yml
-      - name: otelcol validate (gateway: base + gke overlay)
+      - name: "otelcol validate (gateway, base + gke overlay)"
         run: |
           for extra in deploy/base/otel/cloud-gateway.yaml deploy/overlays/gke/cloud-gateway.yaml; do
             docker run --rm -v "$PWD:/w" -e MY_POD_IP=127.0.0.1 -e CLUSTER_NAME=ci -e DEPLOYMENT_ENVIRONMENT=ci -e TRACES_OTLP_ENDPOINT=localhost:4317 \
