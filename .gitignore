@@ -1,5 +1,6 @@
 /bin/
 /dist/
-/.e2e/
+
 coverage.out
 *.test
+/e2e-out/

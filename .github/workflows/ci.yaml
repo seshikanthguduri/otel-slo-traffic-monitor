@@ -81,13 +81,14 @@ jobs:
       - name: Diagnostics
         if: always()
         run: |
-          mkdir -p .e2e
-          kubectl get pods -A -o wide > .e2e/pods.txt || true
-          kubectl get events -A --sort-by=.lastTimestamp > .e2e/events.txt || true
-          for d in otel-gateway slo-engine prometheus jaeger; do kubectl -n observability logs deploy/$d --tail=300 > .e2e/$d.log 2>&1 || true; done
-          kubectl -n observability logs ds/otel-agent --tail=300 > .e2e/otel-agent.log 2>&1 || true
+          mkdir -p e2e-out
+          kubectl get pods -A -o wide > e2e-out/pods.txt || true
+          kubectl get events -A --sort-by=.lastTimestamp > e2e-out/events.txt || true
+          for d in otel-gateway slo-engine prometheus jaeger; do kubectl -n observability logs deploy/$d --tail=300 > e2e-out/$d.log 2>&1 || true; done
+          kubectl -n observability logs ds/otel-agent --tail=300 > e2e-out/otel-agent.log 2>&1 || true
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: e2e-artifacts
-          path: .e2e/
+          path: e2e-out/
+          if-no-files-found: warn
