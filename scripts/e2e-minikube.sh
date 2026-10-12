@@ -30,7 +30,7 @@ fail() { echo "FAIL: $*" | tee -a "$OUT/results.txt"; FAILED=$((FAILED+1)); }
 retry() {
   local deadline=$(( $(date +%s) + $1 )); local what=$2; shift 2
   until "$@"; do
-    if [ "$(date +%s)" -ge "$deadline" ]; then fail "$what (timed out after ${1:-?}s)"; return 0; fi
+    if [ "$(date +%s)" -ge "$deadline" ]; then fail "$what (timed out)"; return 0; fi
     sleep 10
   done
   pass "$what"
