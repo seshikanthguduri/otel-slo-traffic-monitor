@@ -14,7 +14,7 @@ receivers:
         endpoint: 0.0.0.0:4317
       http:
         endpoint: 0.0.0.0:4318
-  kubeletstats:
+  kubelet_stats:
     collection_interval: 20s
     auth_type: serviceAccount
     endpoint: https://${env:K8S_NODE_IP}:10250
@@ -40,7 +40,7 @@ processors:
     check_interval: 1s
     limit_percentage: 80
     spike_limit_percentage: 25
-  k8sattributes:
+  k8s_attributes:
     auth_type: serviceAccount
     passthrough: false
     filter:
@@ -70,7 +70,7 @@ processors:
             name: k8s.pod.ip
       - sources:
           - from: connection
-  resourcedetection:
+  resource_detection:
     detectors: [env, system]
     timeout: 5s
     override: false
@@ -79,7 +79,7 @@ processors:
     timeout: 5s
 
 exporters:
-  otlp/gateway:
+  otlp_grpc/gateway:
     endpoint: otel-gateway.observability.svc.cluster.local:4317
     tls:
       insecure: true
@@ -104,9 +104,9 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, k8sattributes, resourcedetection, batch]
-      exporters: [otlp/gateway]
+      processors: [memory_limiter, k8s_attributes, resource_detection, batch]
+      exporters: [otlp_grpc/gateway]
     metrics:
-      receivers: [otlp, kubeletstats]
-      processors: [memory_limiter, k8sattributes, resourcedetection, batch]
-      exporters: [otlp/gateway]
+      receivers: [otlp, kubelet_stats]
+      processors: [memory_limiter, k8s_attributes, resource_detection, batch]
+      exporters: [otlp_grpc/gateway]

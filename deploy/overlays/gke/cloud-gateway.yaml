@@ -1,7 +1,7 @@
 # GKE: also export to Google Cloud Managed Service for Prometheus using
 # Workload Identity (roles/monitoring.metricWriter on the bound GSA).
 processors:
-  resourcedetection/gcp:
+  resource_detection/gcp:
     detectors: [env, gcp]
     timeout: 5s
 exporters:
@@ -12,5 +12,5 @@ exporters:
 service:
   pipelines:
     metrics:
-      processors: [memory_limiter, resource/cluster, resourcedetection/gcp, batch]
+      processors: [memory_limiter, resource/cluster, resource_detection/gcp, batch]
       exporters: [prometheus, googlemanagedprometheus]

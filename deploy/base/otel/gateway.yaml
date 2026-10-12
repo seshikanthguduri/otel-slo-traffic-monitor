@@ -1,9 +1,9 @@
 # OpenTelemetry Collector - GATEWAY (Deployment)
 # Responsibilities: cluster-level metrics (k8s_cluster), RED metrics from spans
-# (spanmetrics), service-to-service dependency metrics (servicegraph), and
+# (span_metrics), service-to-service dependency metrics (service_graph), and
 # fan-out to backends. Backends are swappable per cloud in cloud.yaml.
 #
-# NOTE: servicegraph must see the client AND server span of a call. With more
+# NOTE: service_graph must see the client AND server span of a call. With more
 # than one gateway replica, put the loadbalancing exporter (routing_key:
 # traceID) in front - see docs/ARCHITECTURE.md.
 extensions:
@@ -43,7 +43,7 @@ processors:
 connectors:
   # RED metrics per span (service, operation, kind, status code). Language-
   # agnostic fallback for services that only emit traces.
-  spanmetrics:
+  span_metrics:
     histogram:
       explicit:
         buckets: [5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2.5s, 5s]
@@ -55,7 +55,7 @@ connectors:
       enabled: true
     metrics_flush_interval: 15s
   # Builds client->server edges from parent/child CLIENT+SERVER spans.
-  servicegraph:
+  service_graph:
     latency_histogram_buckets: [5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2.5s, 5s]
     dimensions: [k8s.namespace.name]
     store:
@@ -66,11 +66,11 @@ connectors:
 exporters:
   prometheus:
     endpoint: 0.0.0.0:8889
-    resource_to_telemetry_conversion:
-      enabled: true
+    resource_constant_labels:
+      included: ["*"]
     enable_open_metrics: true
     metric_expiration: 10m
-  otlp/traces:
+  otlp_grpc/traces:
     endpoint: ${env:TRACES_OTLP_ENDPOINT}
     tls:
       insecure: true
@@ -93,8 +93,8 @@ service:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, resource/cluster, batch]
-      exporters: [otlp/traces, spanmetrics, servicegraph]
+      exporters: [otlp_grpc/traces, span_metrics, service_graph]
     metrics:
-      receivers: [otlp, k8s_cluster, spanmetrics, servicegraph]
+      receivers: [otlp, k8s_cluster, span_metrics, service_graph]
       processors: [memory_limiter, resource/cluster, batch]
       exporters: [prometheus]

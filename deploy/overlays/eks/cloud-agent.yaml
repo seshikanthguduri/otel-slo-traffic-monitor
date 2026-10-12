@@ -2,7 +2,7 @@
 # k8s.cluster.name from EC2 IMDS + EKS detectors. Requires IMDSv2 hop limit 2
 # on the node launch template (default for EKS managed node groups AL2023).
 processors:
-  resourcedetection:
+  resource_detection:
     detectors: [env, eks, ec2, system]
     eks:
       resource_attributes:

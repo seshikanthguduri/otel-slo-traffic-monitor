@@ -7,12 +7,12 @@ extensions:
     region: ${env:AWS_REGION}
     service: aps
 exporters:
-  prometheusremotewrite/amp:
+  prometheus_remote_write/amp:
     endpoint: ${env:AMP_REMOTE_WRITE_URL}
     auth:
       authenticator: sigv4auth
-    resource_to_telemetry_conversion:
-      enabled: true
+    resource_constant_labels:
+      included: ["*"]
     remote_write_queue:
       enabled: true
       queue_size: 10000
@@ -21,4 +21,4 @@ service:
   extensions: [health_check, sigv4auth]
   pipelines:
     metrics:
-      exporters: [prometheus, prometheusremotewrite/amp]
+      exporters: [prometheus, prometheus_remote_write/amp]

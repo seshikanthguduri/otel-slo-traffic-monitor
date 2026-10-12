@@ -46,7 +46,7 @@ metadata:
     app.kubernetes.io/name: otel-gateway
     app.kubernetes.io/component: gateway
 spec:
-  # Single replica: servicegraph + k8s_cluster need one consistent view.
+  # Single replica: service_graph + k8s_cluster need one consistent view.
   # Scale-out pattern is documented in docs/ARCHITECTURE.md.
   replicas: 1
   selector:

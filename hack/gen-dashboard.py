@@ -61,7 +61,7 @@ panel("table", "SLA compliance and service credits",
           "renameByName": {"Value #A": "compliant (1=yes)", "Value #B": "credit %"}}}]})
 advance()
 
-row("East-west traffic (OTel servicegraph connector)")
+row("East-west traffic (OTel service_graph connector)")
 panel("table", "Service-to-service edges",
       [('sum by (client, server) (rate(traces_service_graph_request_total{server!="unknown"}[5m]))', ""),
        ('sum by (client, server) (rate(traces_service_graph_request_failed_total{server!="unknown"}[5m])) / sum by (client, server) (rate(traces_service_graph_request_total{server!="unknown"}[5m]))', ""),
@@ -82,7 +82,7 @@ panel("timeseries", "5xx ratio by service", [(f'sum by (service_name) (rate(http
 panel("timeseries", "p99 latency by service", [(f'histogram_quantile(0.99, sum by (service_name, le) (rate(http_server_request_duration_seconds_bucket{ns}[5m])))', "{{service_name}}")], 16, 8, unit="s")
 advance()
 
-row("Container level (kubeletstats + k8s_cluster receivers)")
+row("Container level (kubelet_stats + k8s_cluster receivers)")
 panel("timeseries", "CPU usage by container", [(f'sum by (k8s_pod_name, k8s_container_name) (container_cpu_usage{ns})', "{{k8s_pod_name}}/{{k8s_container_name}}")], 0, 8, unit="short", desc="CPU cores")
 panel("timeseries", "CPU % of limit", [(f'max by (k8s_pod_name, k8s_container_name) (k8s_container_cpu_limit_utilization_ratio{ns})', "{{k8s_pod_name}}/{{k8s_container_name}}")], 8, 8, unit="percentunit", desc="Sustained >80% means CPU throttling risk")
 panel("timeseries", "Memory % of limit", [(f'max by (k8s_pod_name, k8s_container_name) (k8s_container_memory_limit_utilization_ratio{ns})', "{{k8s_pod_name}}/{{k8s_container_name}}")], 16, 8, unit="percentunit", desc="Approaching 100% means OOMKill risk")

@@ -3,8 +3,8 @@
 ## Signal flow
 
 1. **Instrumentation.** Each service uses the OTel Go SDK. `otelhttp` creates SERVER spans and the `http.server.request.duration` histogram. The instrumented transport creates CLIENT spans and injects `traceparent`. Pod identity (`k8s.pod.name`, `k8s.pod.uid`, `k8s.namespace.name`, `k8s.container.name`) comes from the Downward API through `OTEL_RESOURCE_ATTRIBUTES`.
-2. **Agent (DaemonSet).** Receives OTLP on a node-local Service, so telemetry never leaves the node before enrichment. Adds Kubernetes metadata with `k8sattributes` (deployment, node, image, labels) and cloud metadata with `resourcedetection`. Collects kubelet stats for every container on the node.
-3. **Gateway (Deployment).** Collects cluster state with `k8s_cluster`. Derives RED metrics (`spanmetrics`) and dependency edges (`servicegraph`) from traces. Exports traces to Jaeger and metrics to a Prometheus scrape endpoint, plus a managed backend in the cloud overlays.
+2. **Agent (DaemonSet).** Receives OTLP on a node-local Service, so telemetry never leaves the node before enrichment. Adds Kubernetes metadata with `k8s_attributes` (deployment, node, image, labels) and cloud metadata with `resource_detection`. Collects kubelet stats for every container on the node.
+3. **Gateway (Deployment).** Collects cluster state with `k8s_cluster`. Derives RED metrics (`span_metrics`) and dependency edges (`service_graph`) from traces. Exports traces to Jaeger and metrics to a Prometheus scrape endpoint, plus a managed backend in the cloud overlays.
 4. **slo-engine.** Reads Prometheus and computes SLO, SLA, traffic and container views. It publishes its results back through OTLP as `slo_*` and `sla_*` metrics, so dashboards and alerting use one store.
 
 ## Decisions
@@ -23,11 +23,11 @@
 
 ## Production scale-out
 
-The minikube layout runs one gateway replica. That's correct for `servicegraph` and `k8s_cluster`, but it's also a single point of failure. For production:
+The minikube layout runs one gateway replica. That's correct for `service_graph` and `k8s_cluster`, but it's also a single point of failure. For production:
 
 1. **Split cluster-scoped receivers.** Run `k8s_cluster` in its own single-replica Deployment (or use leader election with `k8s_leader_elector`) so the gateway can scale.
-2. **Route traces by trace ID.** Put the `loadbalancing` exporter (`routing_key: traceID`, DNS or k8s resolver) in the agent, pointing at a headless Service for a gateway StatefulSet. Every span of a trace lands on the same gateway replica, which `servicegraph` and tail sampling both need.
-3. **Tail sampling after the connectors.** Compute `spanmetrics` and `servicegraph` on 100% of spans, then apply `tail_sampling` only on the pipeline that exports to the trace backend. Your SLIs and graph stay exact while storage costs drop.
+2. **Route traces by trace ID.** Put the `loadbalancing` exporter (`routing_key: traceID`, DNS or k8s resolver) in the agent, pointing at a headless Service for a gateway StatefulSet. Every span of a trace lands on the same gateway replica, which `service_graph` and tail sampling both need.
+3. **Tail sampling after the connectors.** Compute `span_metrics` and `service_graph` on 100% of spans, then apply `tail_sampling` only on the pipeline that exports to the trace backend. Your SLIs and graph stay exact while storage costs drop.
 4. **HPA on the gateway**, driven by `otelcol_exporter_queue_size` and CPU, plus a PodDisruptionBudget.
 5. **Alertmanager** routes `severity=page` to on-call and `severity=ticket` to the backlog. The `contract=sla` label sends SLA alerts to account management as well.
 6. **Retention.** Long SLO windows (30d) need at least 30 days of retention, or recording rules on a long-term store such as Thanos, Mimir, AMP or GMP.
@@ -36,6 +36,6 @@ The minikube layout runs one gateway replica. That's correct for `servicegraph` 
 ## Cardinality guardrails
 
 - Span names and the `http.route` attribute use route patterns (`GET /api/work`), never raw URLs.
-- `spanmetrics` dimensions are limited to method, status code and namespace.
-- `servicegraph` adds only `k8s.namespace.name`.
-- `resource_to_telemetry_conversion` turns resource attributes into labels, which suits a lab. In large fleets, drop high-churn attributes (for example `k8s.pod.uid` and `host.id`) with a `transform` or `resource` processor before export.
+- `span_metrics` dimensions are limited to method, status code and namespace.
+- `service_graph` adds only `k8s.namespace.name`.
+- `resource_constant_labels: {included: ["*"]}` turns every resource attribute into a label, which suits a lab. In large fleets, list only what you query (`service.*`, `k8s.namespace.name`, `k8s.pod.name`, `k8s.container.name`, `k8s.cluster.name`) or add high-churn keys such as `k8s.pod.uid` and `host.id` to `excluded`.

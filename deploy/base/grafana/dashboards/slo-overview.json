@@ -319,7 +319,7 @@
     },
     {
       "type": "row",
-      "title": "East-west traffic (OTel servicegraph connector)",
+      "title": "East-west traffic (OTel service_graph connector)",
       "id": 7,
       "collapsed": false,
       "gridPos": {
@@ -623,7 +623,7 @@
     },
     {
       "type": "row",
-      "title": "Container level (kubeletstats + k8s_cluster receivers)",
+      "title": "Container level (kubelet_stats + k8s_cluster receivers)",
       "id": 16,
       "collapsed": false,
       "gridPos": {

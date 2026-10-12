@@ -3,7 +3,7 @@
 # (minikube locally, minikube in GitHub Actions). Requires kubectl, curl, jq.
 #
 #   1. traces flow app -> agent -> gateway -> Jaeger
-#   2. servicegraph edges appear for the real call topology
+#   2. service_graph edges appear for the real call topology
 #   3. SLOs evaluate with data; container-level metrics are joined
 #   4. fault injection makes the payment SLO page and breach its SLA
 set -euo pipefail
@@ -66,7 +66,7 @@ for s in frontend-availability frontend-latency checkout-availability payment-av
 done
 
 echo "--- container-level metrics"
-retry 120 "kubeletstats container CPU for demo pods" prom_has 'container_cpu_usage{k8s_namespace_name="demo"}'
+retry 120 "kubelet_stats container CPU for demo pods" prom_has 'container_cpu_usage{k8s_namespace_name="demo"}'
 retry 60 "container memory working set" prom_has 'container_memory_working_set_bytes{k8s_namespace_name="demo"}'
 retry 60 "CPU limit utilization" prom_has 'k8s_container_cpu_limit_utilization_ratio{k8s_namespace_name="demo"}'
 retry 60 "k8s_cluster container restarts" prom_has 'k8s_container_restarts{k8s_namespace_name="demo"}'

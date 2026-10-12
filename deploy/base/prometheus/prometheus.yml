@@ -6,8 +6,8 @@ global:
 rule_files:
   - /etc/prometheus/slo-rules.yaml
 scrape_configs:
-  # Everything produced through OpenTelemetry (apps, kubeletstats, k8s_cluster,
-  # spanmetrics, servicegraph, slo-engine) is exposed by the gateway.
+  # Everything produced through OpenTelemetry (apps, kubelet_stats, k8s_cluster,
+  # span_metrics, service_graph, slo-engine) is exposed by the gateway.
   - job_name: otel-gateway
     honor_labels: true
     static_configs:

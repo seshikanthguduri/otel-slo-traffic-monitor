@@ -21,10 +21,10 @@ flowchart LR
     CO --> INV[inventory]
   end
   subgraph node [every node]
-    AG["OTel Collector agent (DaemonSet)<br/>otlp · kubeletstats · k8sattributes · resourcedetection"]
+    AG["OTel Collector agent (DaemonSet)<br/>otlp · kubelet_stats · k8s_attributes · resource_detection"]
   end
   subgraph obs [namespace: observability]
-    GW["OTel Collector gateway<br/>k8s_cluster · spanmetrics · servicegraph"]
+    GW["OTel Collector gateway<br/>k8s_cluster · span_metrics · service_graph"]
     PR[(Prometheus)]
     JA[(Jaeger v2)]
     SE["slo-engine (Go)<br/>SLO · SLA · traffic · containers API"]
@@ -47,8 +47,8 @@ flowchart LR
 | `cmd/demo-service` | One Go binary that plays any microservice. It's instrumented with the OTel SDK and `otelhttp`, uses W3C trace-context propagation, and lets you inject faults at runtime through `POST /admin/fault`. |
 | `cmd/loadgen` | Steady, traced traffic. It shows up as the root node of the service graph. |
 | `cmd/slo-engine` | Evaluates SLOs and SLAs, analyses traffic and joins container health. Serves a JSON API and exports its results as OTel metrics. It also generates Prometheus alert rules. |
-| OTel Collector agent | DaemonSet. Runs `kubeletstats` (container, pod and node CPU and memory, including limit and request utilization), `k8sattributes` and `resourcedetection`. Apps reach it through a node-local Service (`internalTrafficPolicy: Local`), so no hostPort is needed. |
-| OTel Collector gateway | Runs `k8s_cluster` (restarts, readiness, deployment health), the `spanmetrics` connector (RED metrics from spans) and the `servicegraph` connector (client→server edges). Fans out to backends. |
+| OTel Collector agent | DaemonSet. Runs `kubelet_stats` (container, pod and node CPU and memory, including limit and request utilization), `k8s_attributes` and `resource_detection`. Apps reach it through a node-local Service (`internalTrafficPolicy: Local`), so no hostPort is needed. |
+| OTel Collector gateway | Runs `k8s_cluster` (restarts, readiness, deployment health), the `span_metrics` connector (RED metrics from spans) and the `service_graph` connector (client→server edges). Fans out to backends. |
 | Prometheus, Grafana, Jaeger | Local backends. In the cloud overlays you swap them for managed services. |
 
 The pipeline uses only standard OTel pieces: OTLP, semantic-convention HTTP metrics (`http.server.request.duration`), and spec-defined `OTEL_*` environment variables. Nothing in the Go code is cloud-specific.
@@ -94,7 +94,7 @@ Watch the `SLO, SLA and Service Traffic` dashboard in Grafana while this runs. T
 make e2e
 ```
 
-This checks that traces reach Jaeger, that all five service-graph edges appear, and that all six SLOs evaluate with data. It confirms the kubeletstats and k8s_cluster container metrics exist, that the container view joins resource and RED data, and that the engine's own metrics arrive over OTLP. Then it injects faults and asserts that the payment SLO pages, that the SLA reports `BREACHED`, and that the checkout→payment edge is flagged. CI runs the same script on a fresh minikube for every push (see `.github/workflows/ci.yaml`).
+This checks that traces reach Jaeger, that all five service-graph edges appear, and that all six SLOs evaluate with data. It confirms the kubelet_stats and k8s_cluster container metrics exist, that the container view joins resource and RED data, and that the engine's own metrics arrive over OTLP. Then it injects faults and asserts that the payment SLO pages, that the SLA reports `BREACHED`, and that the checkout→payment edge is flagged. CI runs the same script on a fresh minikube for every push (see `.github/workflows/ci.yaml`).
 
 ## The SLO config
 
@@ -121,7 +121,7 @@ SLI templates:
 |---|---|---|
 | `http-availability` | non-5xx requests | `http_server_request_duration_seconds_count` |
 | `http-latency` | requests under `latencyThreshold` (must be a histogram bucket boundary) | `..._bucket{le=...}` |
-| `servicegraph-edge-availability` | non-failed calls on one client→server edge | `traces_service_graph_request_*` |
+| `service_graph-edge-availability` | non-failed calls on one client→server edge | `traces_service_graph_request_*` |
 | `custom` | your own `errorQuery` / `totalQuery` with `{{window}}` | any PromQL |
 
 When `alertPolicies` is omitted you get the SRE Workbook defaults: 2% of budget burned in 1h (paired with 5m) pages, 5% in 6h (paired with 30m) pages, 10% in 1d and 10% in 3d open tickets. On a 30-day window those come out to the familiar 14.4, 6, 3 and 1 burn-rate thresholds, and they scale correctly for 7-day or 28-day windows. An alert fires only when both its long and short windows exceed the threshold. The long window shows the burn is significant, and the short one lets the alert reset quickly once things recover.
@@ -164,7 +164,7 @@ Each overlay changes only a small `cloud.yaml` that the Collector merges over th
 - The full pipeline was run against real `otelcol-contrib` 0.162.0 and Prometheus 3.15.0 binaries. The metric names the engine and dashboard query (`http_server_request_duration_seconds_*`, `traces_service_graph_*`, `slo_*`, `sla_*`) were confirmed against live data.
 - `kustomize build` passes for all four overlays, and `kubeconform -strict` validates the output. Collector configs pass `otelcol validate`, and the generated rules pass `promtool check rules`.
 - `govulncheck` is clean.
-- The kubeletstats and k8s_cluster metric names are asserted by the minikube e2e job, which needs a real kubelet. If a Collector upgrade renames one, that job fails and lists the actual names in its artifacts.
+- The kubelet_stats and k8s_cluster metric names are asserted by the minikube e2e job, which needs a real kubelet. If a Collector upgrade renames one, that job fails and lists the actual names in its artifacts.
 
 Not tested here: live EKS, GKE and AKS clusters. Those overlays are validated for schema and Collector config, but you need to fill in your account, workspace and identity values.
 
