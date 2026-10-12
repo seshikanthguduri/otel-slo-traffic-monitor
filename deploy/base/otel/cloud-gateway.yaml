@@ -1,0 +1,2 @@
+# Cloud-neutral defaults: in-cluster Prometheus scrapes :8889. Overlays replace this file.
+{}

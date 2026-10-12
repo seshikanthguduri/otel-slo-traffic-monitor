@@ -1,0 +1,808 @@
+{
+  "uid": "slo-overview",
+  "title": "SLO, SLA and Service Traffic",
+  "tags": [
+    "slo",
+    "sla",
+    "opentelemetry"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "namespace",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "label": "Namespace",
+        "query": {
+          "query": "label_values(http_server_request_duration_seconds_count, k8s_namespace_name)",
+          "refId": "ns"
+        },
+        "definition": "label_values(http_server_request_duration_seconds_count, k8s_namespace_name)",
+        "includeAll": true,
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "refresh": 2
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "title": "SLO status (from slo-engine)",
+      "id": 1,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "SLI over SLO window",
+      "id": 2,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "good/valid events over the rolling SLO window",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "slo_sli",
+          "legendFormat": "{{slo}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 3,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.99
+              },
+              {
+                "color": "green",
+                "value": 0.999
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "type": "bargauge",
+      "title": "Error budget remaining",
+      "id": 3,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "1 = untouched, 0 = exhausted, negative = overspent",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "slo_error_budget_remaining",
+          "legendFormat": "{{slo}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": -1,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.25
+              },
+              {
+                "color": "green",
+                "value": 0.5
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient"
+      }
+    },
+    {
+      "type": "table",
+      "title": "Firing burn-rate alerts",
+      "id": 4,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Multi-window multi-burn-rate policies (SRE Workbook)",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "slo_alert_firing == 1",
+          "legendFormat": "",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "includeByName": {
+              "slo": true,
+              "severity": true,
+              "long_window": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Burn rate (fast windows)",
+      "id": 5,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "1.0 = exactly on budget; 14.4 over 1h pages for a 30d window",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "slo_burn_rate{window=~\"5m|1h\"}",
+          "legendFormat": "{{slo}} {{window}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "table",
+      "title": "SLA compliance and service credits",
+      "id": 6,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sla_compliant",
+          "legendFormat": "",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sla_credit_percent",
+          "legendFormat": "",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "transformations": [
+        {
+          "id": "merge"
+        },
+        {
+          "id": "organize",
+          "options": {
+            "includeByName": {
+              "slo": true,
+              "slo_service": true,
+              "Value #A": true,
+              "Value #B": true
+            },
+            "renameByName": {
+              "Value #A": "compliant (1=yes)",
+              "Value #B": "credit %"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "East-west traffic (OTel servicegraph connector)",
+      "id": 7,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "panels": []
+    },
+    {
+      "type": "table",
+      "title": "Service-to-service edges",
+      "id": 8,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (client, server) (rate(traces_service_graph_request_total{server!=\"unknown\"}[5m]))",
+          "legendFormat": "",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (client, server) (rate(traces_service_graph_request_failed_total{server!=\"unknown\"}[5m])) / sum by (client, server) (rate(traces_service_graph_request_total{server!=\"unknown\"}[5m]))",
+          "legendFormat": "",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.99, sum by (client, server, le) (rate(traces_service_graph_request_server_seconds_bucket{server!=\"unknown\"}[5m])))",
+          "legendFormat": "",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "transformations": [
+        {
+          "id": "merge"
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true
+            },
+            "renameByName": {
+              "Value #A": "req/s",
+              "Value #B": "error ratio",
+              "Value #C": "p99 (s)"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Edge error ratio",
+      "id": 9,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (client, server) (rate(traces_service_graph_request_failed_total[5m])) / sum by (client, server) (rate(traces_service_graph_request_total[5m]))",
+          "legendFormat": "{{client}} -> {{server}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "timeseries",
+      "title": "Edge p99 latency (server side)",
+      "id": 10,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.99, sum by (client, server, le) (rate(traces_service_graph_request_server_seconds_bucket[5m])))",
+          "legendFormat": "{{client}} -> {{server}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "timeseries",
+      "title": "Edge throughput",
+      "id": 11,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 26
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (client, server) (rate(traces_service_graph_request_total[5m]))",
+          "legendFormat": "{{client}} -> {{server}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "row",
+      "title": "Service RED (OTel HTTP semantic conventions)",
+      "id": 12,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 34
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Requests/s by service",
+      "id": 13,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 35
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (service_name) (rate(http_server_request_duration_seconds_count{k8s_namespace_name=~\"$namespace\"}[5m]))",
+          "legendFormat": "{{service_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "timeseries",
+      "title": "5xx ratio by service",
+      "id": 14,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 35
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (service_name) (rate(http_server_request_duration_seconds_count{k8s_namespace_name=~\"$namespace\",http_response_status_code=~\"5..\"}[5m])) / sum by (service_name) (rate(http_server_request_duration_seconds_count{k8s_namespace_name=~\"$namespace\"}[5m]))",
+          "legendFormat": "{{service_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "timeseries",
+      "title": "p99 latency by service",
+      "id": 15,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 35
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.99, sum by (service_name, le) (rate(http_server_request_duration_seconds_bucket{k8s_namespace_name=~\"$namespace\"}[5m])))",
+          "legendFormat": "{{service_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "row",
+      "title": "Container level (kubeletstats + k8s_cluster receivers)",
+      "id": 16,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 43
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU usage by container",
+      "id": 17,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "CPU cores",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 44
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (k8s_pod_name, k8s_container_name) (container_cpu_usage{k8s_namespace_name=~\"$namespace\"})",
+          "legendFormat": "{{k8s_pod_name}}/{{k8s_container_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU % of limit",
+      "id": 18,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Sustained >80% means CPU throttling risk",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 44
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (k8s_pod_name, k8s_container_name) (k8s_container_cpu_limit_utilization_ratio{k8s_namespace_name=~\"$namespace\"})",
+          "legendFormat": "{{k8s_pod_name}}/{{k8s_container_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory % of limit",
+      "id": 19,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Approaching 100% means OOMKill risk",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 44
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (k8s_pod_name, k8s_container_name) (k8s_container_memory_limit_utilization_ratio{k8s_namespace_name=~\"$namespace\"})",
+          "legendFormat": "{{k8s_pod_name}}/{{k8s_container_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory working set by container",
+      "id": 20,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 52
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (k8s_pod_name, k8s_container_name) (container_memory_working_set_bytes{k8s_namespace_name=~\"$namespace\"})",
+          "legendFormat": "{{k8s_pod_name}}/{{k8s_container_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "type": "timeseries",
+      "title": "Container restarts",
+      "id": 21,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 52
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max by (k8s_pod_name, k8s_container_name) (k8s_container_restarts{k8s_namespace_name=~\"$namespace\"})",
+          "legendFormat": "{{k8s_pod_name}}/{{k8s_container_name}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {}
+    }
+  ]
+}

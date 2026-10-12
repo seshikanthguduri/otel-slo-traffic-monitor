@@ -1,0 +1,14 @@
+# EKS: tag every signal with cloud.provider/region/account, host.id and
+# k8s.cluster.name from EC2 IMDS + EKS detectors. Requires IMDSv2 hop limit 2
+# on the node launch template (default for EKS managed node groups AL2023).
+processors:
+  resourcedetection:
+    detectors: [env, eks, ec2, system]
+    eks:
+      resource_attributes:
+        k8s.cluster.name:
+          enabled: true
+    ec2:
+      resource_attributes:
+        host.name:
+          enabled: false

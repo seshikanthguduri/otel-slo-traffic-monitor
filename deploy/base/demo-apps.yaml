@@ -1,0 +1,561 @@
+# Demo microservice topology: one image, role selected by SERVICE_NAME and DOWNSTREAMS.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: demo
+  labels: &id001
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: demo-shop
+    app.kubernetes.io/version: dev
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: frontend
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 15
+      containers:
+      - name: app
+        image: otel-slo-traffic-monitor:latest
+        imagePullPolicy: IfNotPresent
+        command:
+        - /usr/local/bin/demo-service
+        env:
+        - name: OTEL_SERVICE_NAME
+          value: frontend
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://otel-agent.observability.svc.cluster.local:4317
+        - name: OTEL_EXPORTER_OTLP_INSECURE
+          value: 'true'
+        - name: OTEL_METRIC_EXPORT_INTERVAL
+          value: '15000'
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_UID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.uid
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: k8s.pod.name=$(POD_NAME),k8s.namespace.name=$(POD_NAMESPACE),k8s.pod.uid=$(POD_UID),k8s.container.name=app,service.namespace=demo
+        - name: SERVICE_NAME
+          value: frontend
+        - name: DOWNSTREAMS
+          value: http://catalog:8080/api/work,http://checkout:8080/api/work
+        resources:
+          requests:
+            cpu: 20m
+            memory: 32Mi
+          limits:
+            cpu: 200m
+            memory: 96Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        ports:
+        - name: http
+          containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: demo
+spec:
+  selector:
+    app.kubernetes.io/name: frontend
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog
+  namespace: demo
+  labels: &id001
+    app.kubernetes.io/name: catalog
+    app.kubernetes.io/part-of: demo-shop
+    app.kubernetes.io/version: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: catalog
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 15
+      containers:
+      - name: app
+        image: otel-slo-traffic-monitor:latest
+        imagePullPolicy: IfNotPresent
+        command:
+        - /usr/local/bin/demo-service
+        env:
+        - name: OTEL_SERVICE_NAME
+          value: catalog
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://otel-agent.observability.svc.cluster.local:4317
+        - name: OTEL_EXPORTER_OTLP_INSECURE
+          value: 'true'
+        - name: OTEL_METRIC_EXPORT_INTERVAL
+          value: '15000'
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_UID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.uid
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: k8s.pod.name=$(POD_NAME),k8s.namespace.name=$(POD_NAMESPACE),k8s.pod.uid=$(POD_UID),k8s.container.name=app,service.namespace=demo
+        - name: SERVICE_NAME
+          value: catalog
+        - name: DOWNSTREAMS
+          value: ''
+        - name: SLOW_RATE
+          value: '0.02'
+        - name: SLOW_LATENCY_MS
+          value: '700'
+        resources:
+          requests:
+            cpu: 20m
+            memory: 32Mi
+          limits:
+            cpu: 200m
+            memory: 96Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        ports:
+        - name: http
+          containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalog
+  namespace: demo
+spec:
+  selector:
+    app.kubernetes.io/name: catalog
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: checkout
+  namespace: demo
+  labels: &id001
+    app.kubernetes.io/name: checkout
+    app.kubernetes.io/part-of: demo-shop
+    app.kubernetes.io/version: dev
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: checkout
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 15
+      containers:
+      - name: app
+        image: otel-slo-traffic-monitor:latest
+        imagePullPolicy: IfNotPresent
+        command:
+        - /usr/local/bin/demo-service
+        env:
+        - name: OTEL_SERVICE_NAME
+          value: checkout
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://otel-agent.observability.svc.cluster.local:4317
+        - name: OTEL_EXPORTER_OTLP_INSECURE
+          value: 'true'
+        - name: OTEL_METRIC_EXPORT_INTERVAL
+          value: '15000'
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_UID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.uid
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: k8s.pod.name=$(POD_NAME),k8s.namespace.name=$(POD_NAMESPACE),k8s.pod.uid=$(POD_UID),k8s.container.name=app,service.namespace=demo
+        - name: SERVICE_NAME
+          value: checkout
+        - name: DOWNSTREAMS
+          value: http://payment:8080/api/work,http://inventory:8080/api/work
+        resources:
+          requests:
+            cpu: 20m
+            memory: 32Mi
+          limits:
+            cpu: 200m
+            memory: 96Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        ports:
+        - name: http
+          containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: checkout
+  namespace: demo
+spec:
+  selector:
+    app.kubernetes.io/name: checkout
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment
+  namespace: demo
+  labels: &id001
+    app.kubernetes.io/name: payment
+    app.kubernetes.io/part-of: demo-shop
+    app.kubernetes.io/version: dev
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: payment
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 15
+      containers:
+      - name: app
+        image: otel-slo-traffic-monitor:latest
+        imagePullPolicy: IfNotPresent
+        command:
+        - /usr/local/bin/demo-service
+        env:
+        - name: OTEL_SERVICE_NAME
+          value: payment
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://otel-agent.observability.svc.cluster.local:4317
+        - name: OTEL_EXPORTER_OTLP_INSECURE
+          value: 'true'
+        - name: OTEL_METRIC_EXPORT_INTERVAL
+          value: '15000'
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_UID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.uid
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: k8s.pod.name=$(POD_NAME),k8s.namespace.name=$(POD_NAMESPACE),k8s.pod.uid=$(POD_UID),k8s.container.name=app,service.namespace=demo
+        - name: SERVICE_NAME
+          value: payment
+        - name: DOWNSTREAMS
+          value: ''
+        - name: ERROR_RATE
+          value: '0.002'
+        - name: LATENCY_MS
+          value: '15'
+        resources:
+          requests:
+            cpu: 20m
+            memory: 32Mi
+          limits:
+            cpu: 200m
+            memory: 96Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        ports:
+        - name: http
+          containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment
+  namespace: demo
+spec:
+  selector:
+    app.kubernetes.io/name: payment
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory
+  namespace: demo
+  labels: &id001
+    app.kubernetes.io/name: inventory
+    app.kubernetes.io/part-of: demo-shop
+    app.kubernetes.io/version: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: inventory
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 15
+      containers:
+      - name: app
+        image: otel-slo-traffic-monitor:latest
+        imagePullPolicy: IfNotPresent
+        command:
+        - /usr/local/bin/demo-service
+        env:
+        - name: OTEL_SERVICE_NAME
+          value: inventory
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://otel-agent.observability.svc.cluster.local:4317
+        - name: OTEL_EXPORTER_OTLP_INSECURE
+          value: 'true'
+        - name: OTEL_METRIC_EXPORT_INTERVAL
+          value: '15000'
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_UID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.uid
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: k8s.pod.name=$(POD_NAME),k8s.namespace.name=$(POD_NAMESPACE),k8s.pod.uid=$(POD_UID),k8s.container.name=app,service.namespace=demo
+        - name: SERVICE_NAME
+          value: inventory
+        - name: DOWNSTREAMS
+          value: ''
+        resources:
+          requests:
+            cpu: 20m
+            memory: 32Mi
+          limits:
+            cpu: 200m
+            memory: 96Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        ports:
+        - name: http
+          containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory
+  namespace: demo
+spec:
+  selector:
+    app.kubernetes.io/name: inventory
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loadgen
+  namespace: demo
+  labels: &id001
+    app.kubernetes.io/name: loadgen
+    app.kubernetes.io/part-of: demo-shop
+    app.kubernetes.io/version: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: loadgen
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 15
+      containers:
+      - name: app
+        image: otel-slo-traffic-monitor:latest
+        imagePullPolicy: IfNotPresent
+        command:
+        - /usr/local/bin/loadgen
+        env:
+        - name: OTEL_SERVICE_NAME
+          value: loadgen
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://otel-agent.observability.svc.cluster.local:4317
+        - name: OTEL_EXPORTER_OTLP_INSECURE
+          value: 'true'
+        - name: OTEL_METRIC_EXPORT_INTERVAL
+          value: '15000'
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_UID
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.uid
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: k8s.pod.name=$(POD_NAME),k8s.namespace.name=$(POD_NAMESPACE),k8s.pod.uid=$(POD_UID),k8s.container.name=app,service.namespace=demo
+        - name: TARGET_URL
+          value: http://frontend:8080/api/work
+        - name: RPS
+          value: '15'
+        - name: CONCURRENCY
+          value: '16'
+        resources:
+          requests:
+            cpu: 20m
+            memory: 32Mi
+          limits:
+            cpu: 200m
+            memory: 96Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL

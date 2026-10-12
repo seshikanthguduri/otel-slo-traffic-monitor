@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grafana
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 472
+        fsGroup: 472
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: grafana
+          image: grafana/grafana:13.2.3
+          env:
+            # Local-lab convenience ONLY. Overlays for real clusters must use SSO.
+            - {name: GF_AUTH_ANONYMOUS_ENABLED, value: "true"}
+            - {name: GF_AUTH_ANONYMOUS_ORG_ROLE, value: Admin}
+            - {name: GF_AUTH_DISABLE_LOGIN_FORM, value: "true"}
+            - {name: GF_ANALYTICS_REPORTING_ENABLED, value: "false"}
+            - {name: GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH, value: /var/lib/grafana/dashboards/slo-overview.json}
+          ports:
+            - {name: http, containerPort: 3000}
+          readinessProbe:
+            httpGet: {path: /api/health, port: 3000}
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 512Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: datasources, mountPath: /etc/grafana/provisioning/datasources}
+            - {name: dashboards-provider, mountPath: /etc/grafana/provisioning/dashboards}
+            - {name: dashboards, mountPath: /var/lib/grafana/dashboards}
+            - {name: data, mountPath: /var/lib/grafana}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: datasources
+          configMap: {name: grafana-datasources}
+        - name: dashboards-provider
+          configMap: {name: grafana-dashboards-provider}
+        - name: dashboards
+          configMap: {name: grafana-dashboards}
+        - name: data
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: observability
+spec:
+  selector:
+    app.kubernetes.io/name: grafana
+  ports:
+    - {name: http, port: 3000, targetPort: 3000}

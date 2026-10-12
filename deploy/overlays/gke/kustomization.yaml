@@ -1,0 +1,34 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Google Kubernetes Engine (Standard or Autopilot*). Replace REPLACE_ME values.
+# *Autopilot does not allow the kubelet read-only access kubeletstats needs
+#  unless you use the GKE-managed collection; prefer Standard for this lab.
+resources:
+  - ../../base
+images:
+  - name: otel-slo-traffic-monitor
+    newName: REPLACE_ME-docker.pkg.dev/REPLACE_ME/containers/otel-slo-traffic-monitor
+    newTag: v0.1.0
+configMapGenerator:
+  - name: otel-agent-config
+    namespace: observability
+    behavior: merge
+    files:
+      - cloud.yaml=cloud-agent.yaml
+  - name: otel-gateway-config
+    namespace: observability
+    behavior: merge
+    files:
+      - cloud.yaml=cloud-gateway.yaml
+patches:
+  - target: {kind: ServiceAccount, name: otel-gateway}
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          iam.gke.io/gcp-service-account: otel-gateway@REPLACE_ME.iam.gserviceaccount.com
+  - target: {kind: Deployment, name: otel-gateway}
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/1/value
+        value: REPLACE_ME-gke-cluster

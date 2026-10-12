@@ -1,0 +1,16 @@
+# Azure Monitor managed service for Prometheus: the ama-metrics add-on reads
+# custom scrape jobs from this ConfigMap and ships them to your Azure Monitor
+# workspace (viewable in Azure Managed Grafana).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ama-metrics-prometheus-config
+  namespace: kube-system
+data:
+  prometheus-config: |-
+    scrape_configs:
+      - job_name: otel-gateway
+        scrape_interval: 30s
+        honor_labels: true
+        static_configs:
+          - targets: ["otel-gateway.observability.svc.cluster.local:8889"]

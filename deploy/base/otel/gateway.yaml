@@ -1,0 +1,100 @@
+# OpenTelemetry Collector - GATEWAY (Deployment)
+# Responsibilities: cluster-level metrics (k8s_cluster), RED metrics from spans
+# (spanmetrics), service-to-service dependency metrics (servicegraph), and
+# fan-out to backends. Backends are swappable per cloud in cloud.yaml.
+#
+# NOTE: servicegraph must see the client AND server span of a call. With more
+# than one gateway replica, put the loadbalancing exporter (routing_key:
+# traceID) in front - see docs/ARCHITECTURE.md.
+extensions:
+  health_check:
+    endpoint: ${env:MY_POD_IP}:13133
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+  k8s_cluster:
+    auth_type: serviceAccount
+    collection_interval: 30s
+    node_conditions_to_report: [Ready, MemoryPressure, DiskPressure]
+    allocatable_types_to_report: [cpu, memory]
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 25
+  resource/cluster:
+    attributes:
+      - key: k8s.cluster.name
+        value: ${env:CLUSTER_NAME}
+        action: upsert
+      - key: deployment.environment.name
+        value: ${env:DEPLOYMENT_ENVIRONMENT}
+        action: upsert
+  batch:
+    send_batch_size: 2048
+    timeout: 5s
+
+connectors:
+  # RED metrics per span (service, operation, kind, status code). Language-
+  # agnostic fallback for services that only emit traces.
+  spanmetrics:
+    histogram:
+      explicit:
+        buckets: [5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2.5s, 5s]
+    dimensions:
+      - name: http.request.method
+      - name: http.response.status_code
+      - name: k8s.namespace.name
+    exemplars:
+      enabled: true
+    metrics_flush_interval: 15s
+  # Builds client->server edges from parent/child CLIENT+SERVER spans.
+  servicegraph:
+    latency_histogram_buckets: [5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2.5s, 5s]
+    dimensions: [k8s.namespace.name]
+    store:
+      ttl: 15s
+      max_items: 10000
+    metrics_flush_interval: 15s
+
+exporters:
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion:
+      enabled: true
+    enable_open_metrics: true
+    metric_expiration: 10m
+  otlp/traces:
+    endpoint: ${env:TRACES_OTLP_ENDPOINT}
+    tls:
+      insecure: true
+  debug:
+    verbosity: basic
+
+service:
+  extensions: [health_check]
+  telemetry:
+    metrics:
+      level: normal
+      # Collector self-monitoring (queue size, refused/dropped data points).
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 0.0.0.0
+                port: 8888
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource/cluster, batch]
+      exporters: [otlp/traces, spanmetrics, servicegraph]
+    metrics:
+      receivers: [otlp, k8s_cluster, spanmetrics, servicegraph]
+      processors: [memory_limiter, resource/cluster, batch]
+      exporters: [prometheus]

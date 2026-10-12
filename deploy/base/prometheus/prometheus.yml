@@ -1,0 +1,31 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 30s
+  external_labels:
+    source: otel-slo-traffic-monitor
+rule_files:
+  - /etc/prometheus/slo-rules.yaml
+scrape_configs:
+  # Everything produced through OpenTelemetry (apps, kubeletstats, k8s_cluster,
+  # spanmetrics, servicegraph, slo-engine) is exposed by the gateway.
+  - job_name: otel-gateway
+    honor_labels: true
+    static_configs:
+      - targets: ["otel-gateway.observability.svc.cluster.local:8889"]
+  # Collector self-monitoring (agents discovered per node).
+  - job_name: otel-collector-internal
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces: {names: [observability]}
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+        regex: otel-(agent|gateway)
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_container_port_name]
+        regex: metrics
+        action: keep
+      - source_labels: [__meta_kubernetes_pod_name]
+        target_label: pod
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

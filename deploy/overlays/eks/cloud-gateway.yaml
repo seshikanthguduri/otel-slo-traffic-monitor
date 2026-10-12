@@ -1,0 +1,24 @@
+# EKS: in addition to the in-cluster Prometheus scrape endpoint, remote-write
+# everything to Amazon Managed Service for Prometheus (AMP) with SigV4 using
+# IRSA / EKS Pod Identity credentials. Swap traces to AWS X-Ray by adding the
+# awsxray exporter if you prefer it over Jaeger.
+extensions:
+  sigv4auth:
+    region: ${env:AWS_REGION}
+    service: aps
+exporters:
+  prometheusremotewrite/amp:
+    endpoint: ${env:AMP_REMOTE_WRITE_URL}
+    auth:
+      authenticator: sigv4auth
+    resource_to_telemetry_conversion:
+      enabled: true
+    remote_write_queue:
+      enabled: true
+      queue_size: 10000
+      num_consumers: 5
+service:
+  extensions: [health_check, sigv4auth]
+  pipelines:
+    metrics:
+      exporters: [prometheus, prometheusremotewrite/amp]

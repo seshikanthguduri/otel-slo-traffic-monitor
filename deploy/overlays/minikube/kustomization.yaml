@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Local lab: image is built straight into minikube (make image), no registry.
+resources:
+  - ../../base
+images:
+  - name: otel-slo-traffic-monitor
+    newName: otel-slo-traffic-monitor
+    newTag: dev
+patches:
+  - target: {kind: Deployment, name: otel-gateway}
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/1/value
+        value: minikube

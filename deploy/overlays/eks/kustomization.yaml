@@ -1,0 +1,47 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Amazon EKS. Before applying:
+#   1. Push the image:  make image-push REGISTRY=<acct>.dkr.ecr.<region>.amazonaws.com
+#   2. Create an AMP workspace and an IAM role with aps:RemoteWrite for the
+#      otel-gateway ServiceAccount (IRSA or EKS Pod Identity).
+#   3. Replace the REPLACE_ME values below.
+resources:
+  - ../../base
+images:
+  - name: otel-slo-traffic-monitor
+    newName: REPLACE_ME.dkr.ecr.us-west-2.amazonaws.com/otel-slo-traffic-monitor
+    newTag: v0.1.0
+configMapGenerator:
+  - name: otel-agent-config
+    namespace: observability
+    behavior: merge
+    files:
+      - cloud.yaml=cloud-agent.yaml
+  - name: otel-gateway-config
+    namespace: observability
+    behavior: merge
+    files:
+      - cloud.yaml=cloud-gateway.yaml
+patches:
+  - target: {kind: ServiceAccount, name: otel-gateway}
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          eks.amazonaws.com/role-arn: arn:aws:iam::REPLACE_ME:role/otel-gateway-amp-remote-write
+  - target: {kind: Deployment, name: otel-gateway}
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/1/value
+        value: REPLACE_ME-eks-cluster
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: {name: AWS_REGION, value: us-west-2}
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: {name: AMP_REMOTE_WRITE_URL, value: "https://aps-workspaces.us-west-2.amazonaws.com/workspaces/ws-REPLACE_ME/api/v1/remote_write"}
+  - target: {kind: Deployment, name: slo-engine}
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/imagePullPolicy
+        value: Always

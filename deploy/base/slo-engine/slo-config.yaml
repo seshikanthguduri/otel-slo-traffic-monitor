@@ -1,0 +1,95 @@
+# SLO / SLA catalogue for the demo topology.
+#   loadgen -> frontend -> catalog
+#                       -> checkout -> payment
+#                                   -> inventory
+#
+# SLIs come from OpenTelemetry HTTP semantic-convention metrics
+# (http.server.request.duration) and the Collector servicegraph connector.
+# Rule of thumb: the SLA (contract) is looser than the SLO (internal target);
+# the gap is your early-warning buffer.
+prometheus:
+  url: http://prometheus.observability.svc.cluster.local:9090   # overridden by PROMETHEUS_URL
+evaluationInterval: 30s
+
+traffic:
+  window: 5m
+  errorRatioThreshold: 0.01     # edge is "hot" above 1% errors
+  p99ThresholdSeconds: 0.5      # ... or above 500ms p99
+
+containers:
+  selector: k8s_namespace_name="demo"
+  cpuSaturationThreshold: 0.8
+  memorySaturationThreshold: 0.9
+
+# alertPolicies omitted -> SRE Workbook defaults (2%/1h, 5%/6h, 10%/1d, 10%/3d)
+
+slos:
+  - name: frontend-availability
+    service: frontend
+    description: User-facing requests that do not return 5xx
+    objective: 0.999
+    window: 30d
+    sli:
+      template: http-availability
+      selector: k8s_namespace_name="demo"
+    sla:
+      target: 0.995
+      credits:
+        - {below: 0.995, percent: 10}
+        - {below: 0.99, percent: 25}
+        - {below: 0.95, percent: 50}
+
+  - name: frontend-latency
+    service: frontend
+    description: User-facing requests served under 250ms
+    objective: 0.99
+    window: 30d
+    sli:
+      template: http-latency
+      latencyThreshold: "0.25"      # must be a histogram bucket boundary
+      selector: k8s_namespace_name="demo"
+
+  - name: checkout-availability
+    service: checkout
+    objective: 0.999
+    window: 30d
+    sli:
+      template: http-availability
+      selector: k8s_namespace_name="demo"
+    sla:
+      target: 0.995
+      credits:
+        - {below: 0.995, percent: 10}
+        - {below: 0.99, percent: 25}
+
+  - name: payment-availability
+    service: payment
+    description: Payment authorisations without server errors (regulated path)
+    objective: 0.9995
+    window: 30d
+    sli:
+      template: http-availability
+      selector: k8s_namespace_name="demo"
+    sla:
+      target: 0.999
+      credits:
+        - {below: 0.999, percent: 10}
+        - {below: 0.995, percent: 30}
+
+  - name: catalog-latency
+    service: catalog
+    objective: 0.95
+    window: 7d
+    sli:
+      template: http-latency
+      latencyThreshold: "0.5"
+      selector: k8s_namespace_name="demo"
+
+  - name: checkout-to-payment-edge
+    description: Dependency SLO measured from traces (client + server span pairs)
+    objective: 0.999
+    window: 30d
+    sli:
+      template: servicegraph-edge-availability
+      client: checkout
+      server: payment

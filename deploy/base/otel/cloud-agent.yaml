@@ -1,0 +1,4 @@
+# Cloud-neutral defaults (minikube, kind, bare metal). Overlays replace this file.
+processors:
+  resourcedetection:
+    detectors: [env, system]

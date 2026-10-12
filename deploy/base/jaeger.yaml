@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: jaeger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jaeger
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: jaeger
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: jaeger
+          # Jaeger v2 is built on the OpenTelemetry Collector; in-memory storage
+          # for local use. Swap for OpenSearch/Cassandra/Tempo/X-Ray in prod.
+          image: jaegertracing/jaeger:2.22.0
+          env:
+            - name: JAEGER_LISTEN_HOST
+              value: 0.0.0.0
+          ports:
+            - {name: otlp-grpc, containerPort: 4317}
+            - {name: ui, containerPort: 16686}
+          readinessProbe:
+            tcpSocket: {port: 13133}
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 768Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger
+  namespace: observability
+spec:
+  selector:
+    app.kubernetes.io/name: jaeger
+  ports:
+    - {name: otlp-grpc, port: 4317, targetPort: 4317}
+    - {name: ui, port: 16686, targetPort: 16686}
